@@ -26,14 +26,19 @@ func NewService(repo *repo.Queries, db *pgx.Conn) Service {
 	}
 }
 
-func (s *svc) PlaceOrder (ctx context.Context, tempOrder createOrderParams )(repo.Order, error){
+func (s *svc) PlaceOrder(
+	ctx context.Context,
+	tempOrder createOrderParams,
+) (repo.Order, error) {
+
 	// validation payload
 	if tempOrder.CustomerID == 0 {
-		return repo.Order{}, fmt.Errorf("costumer ID is required")
+		return repo.Order{}, fmt.Errorf("customer ID is required")
 	}
 	if len(tempOrder.Items) == 0 {
 		return repo.Order{}, fmt.Errorf("at least one item is required")
 	}
+
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
 		return repo.Order{}, err
@@ -41,36 +46,49 @@ func (s *svc) PlaceOrder (ctx context.Context, tempOrder createOrderParams )(rep
 	defer tx.Rollback(ctx)
 
 	qtx := s.repo.WithTx(tx)
-	// created an order
+
+	// create order
 	order, err := qtx.CreateOrder(ctx, tempOrder.CustomerID)
 	if err != nil {
 		return repo.Order{}, err
 	}
-	// create for the product if exist
+
 	for _, item := range tempOrder.Items {
-		product, err := qtx.FindProductByID(ctx,int64(item.ProductID))
+
+		product, err := qtx.FindProductByID(ctx, int64(item.ProductID))
 		if err != nil {
-			return repo.Order{},ErrProductNotFound
+			return repo.Order{}, ErrProductNotFound
 		}
 
-		if product.Quantity < item.Quantity {
-			return repo.Order{},ErrProductNotStock
+		// atomic stock update
+		rows, err := qtx.UpdateQuantityProductByID(ctx, repo.UpdateQuantityProductByIDParams{
+			Quantity: item.Quantity,
+			ID:       product.ID,
+		})
+		if err != nil {
+			return repo.Order{}, err
 		}
 
+		if rows == 0 {
+			return repo.Order{}, ErrProductNotStock
+		}
+
+		// create order item
 		_, err = qtx.CreateOrderItem(ctx, repo.CreateOrderItemParams{
-		OrderID:order.ID,
-		ProductID: item.ProductID,
-		Quantity: item.Quantity,
-		PriceCents: product.PriceCents,
-	})
-	if err != nil  {
+			OrderID:     order.ID,
+			ProductID:  item.ProductID,
+			Quantity:   item.Quantity,
+			PriceCents: product.PriceCents,
+		})
+		if err != nil {
+			return repo.Order{}, err
+		}
+	}
+
+	// IMPORTANT: check commit error
+	if err := tx.Commit(ctx); err != nil {
 		return repo.Order{}, err
 	}
 
-	// Challenge : update the product stock quantity
-	}
-	
-	tx.Commit(ctx)
-	// create  order item
 	return order, nil
 }

@@ -13,6 +13,7 @@ type Querier interface {
 	CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) (OrderItem, error)
 	FindProductByID(ctx context.Context, id int64) (Product, error)
 	ListProducts(ctx context.Context) ([]Product, error)
+	UpdateQuantityProductByID(ctx context.Context, arg UpdateQuantityProductByIDParams) (int64, error)
 }
 
 var _ Querier = (*Queries)(nil)

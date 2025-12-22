@@ -7,6 +7,13 @@ SELECT *
 FROM products
 WHERE id = $1;
 
+
+-- name: UpdateQuantityProductByID :execrows
+UPDATE products
+SET quantity = quantity-$1
+WHERE id = $2
+    AND quantity >= $1;
+
 -- name: CreateOrder :one
 INSERT INTO orders (customer_id)
 VALUES ($1)
@@ -16,3 +23,4 @@ RETURNING *;
 INSERT INTO order_items (order_id, product_id, quantity, price_cents)
 VALUES ($1, $2, $3, $4)
 RETURNING *;
+
