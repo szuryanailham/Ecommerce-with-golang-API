@@ -1,0 +1,4 @@
+goals e-ecommerce API with GOLANG
+
+- delete product
+- user authentication

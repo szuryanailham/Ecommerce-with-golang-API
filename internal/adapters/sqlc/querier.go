@@ -11,8 +11,10 @@ import (
 type Querier interface {
 	CreateOrder(ctx context.Context, customerID int64) (Order, error)
 	CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) (OrderItem, error)
+	CreateProduct(ctx context.Context, arg CreateProductParams) (Product, error)
 	FindProductByID(ctx context.Context, id int64) (Product, error)
 	ListProducts(ctx context.Context) ([]Product, error)
+	UpdateProductName(ctx context.Context, arg UpdateProductNameParams) error
 	UpdateQuantityProductByID(ctx context.Context, arg UpdateQuantityProductByIDParams) (int64, error)
 }
 

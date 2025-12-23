@@ -53,6 +53,37 @@ func (q *Queries) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams
 	return i, err
 }
 
+const createProduct = `-- name: CreateProduct :one
+INSERT INTO products (
+    name,
+    price_cents,
+    quantity
+)
+VALUES (
+    $1, $2, $3
+)
+RETURNING id, name, price_cents, quantity, created_at
+`
+
+type CreateProductParams struct {
+	Name       string `json:"name"`
+	PriceCents int32  `json:"price_cents"`
+	Quantity   int32  `json:"quantity"`
+}
+
+func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (Product, error) {
+	row := q.db.QueryRow(ctx, createProduct, arg.Name, arg.PriceCents, arg.Quantity)
+	var i Product
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.PriceCents,
+		&i.Quantity,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const findProductByID = `-- name: FindProductByID :one
 SELECT id, name, price_cents, quantity, created_at
 FROM products
@@ -101,6 +132,23 @@ func (q *Queries) ListProducts(ctx context.Context) ([]Product, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateProductName = `-- name: UpdateProductName :exec
+UPDATE products
+SET name = $1
+WHERE id = $2
+RETURNING id, name, price_cents, quantity, created_at
+`
+
+type UpdateProductNameParams struct {
+	Name string `json:"name"`
+	ID   int64  `json:"id"`
+}
+
+func (q *Queries) UpdateProductName(ctx context.Context, arg UpdateProductNameParams) error {
+	_, err := q.db.Exec(ctx, updateProductName, arg.Name, arg.ID)
+	return err
 }
 
 const updateQuantityProductByID = `-- name: UpdateQuantityProductByID :execrows
